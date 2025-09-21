@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Relevance Check System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.8);
+            border-radius: 10px;
+            margin: 5px 0;
+            transition: all 0.3s;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            color: white;
+            background: rgba(255,255,255,0.2);
+            transform: translateX(5px);
+        }
+        .main-content {
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            transition: transform 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .score-badge {
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 25px;
+        }
+        .score-high { background: linear-gradient(45deg, #28a745, #20c997); color: white; }
+        .score-medium { background: linear-gradient(45deg, #ffc107, #fd7e14); color: white; }
+        .score-low { background: linear-gradient(45deg, #dc3545, #e83e8c); color: white; }
+        .upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+        .table-responsive {
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        .btn-custom {
+            border-radius: 25px;
+            padding: 10px 25px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        .btn-primary-custom {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+        }
+        .btn-primary-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+        }
+        .loading {
+            display: none;
+        }
+        .loading.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 sidebar p-0">
+                <div class="p-4">
+                    <h4 class="text-white mb-4">
+                        <i class="fas fa-graduation-cap me-2"></i>
+                        Resume Check
+                    </h4>
+                    <nav class="nav flex-column">
+                        <a class="nav-link active" href="#" onclick="showSection('dashboard')">
+                            <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                        </a>
+                        <a class="nav-link" href="#" onclick="showSection('upload-resume')">
+                            <i class="fas fa-file-upload me-2"></i> Upload Resume
+                        </a>
+                        <a class="nav-link" href="#" onclick="showSection('upload-jd')">
+                            <i class="fas fa-briefcase me-2"></i> Upload Job Description
+                        </a>
+                        <a class="nav-link" href="#" onclick="showSection('evaluate')">
+                            <i class="fas fa-search me-2"></i> Evaluate
+                        </a>
+                        <a class="nav-link" href="#" onclick="showSection('results')">
+                            <i class="fas fa-chart-bar me-2"></i> Results
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 main-content">
+                <div class="p-4">
+                    <!-- Dashboard Section -->
+                    <div id="dashboard-section" class="content-section">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h2><i class="fas fa-tachometer-alt me-2"></i> Dashboard</h2>
+                            <button class="btn btn-primary-custom btn-custom" onclick="loadDashboard()">
+                                <i class="fas fa-sync-alt me-2"></i> Refresh
+                            </button>
+                        </div>
+
+                        <!-- Stats Cards -->
+                        <div class="row mb-4">
+                            <div class="col-md-3 mb-3">
+                                <div class="card stats-card">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-file-alt fa-2x mb-2"></i>
+                                        <h3 id="total-resumes">0</h3>
+                                        <p class="mb-0">Total Resumes</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card stats-card">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-briefcase fa-2x mb-2"></i>
+                                        <h3 id="total-jds">0</h3>
+                                        <p class="mb-0">Job Descriptions</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card stats-card">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-chart-line fa-2x mb-2"></i>
+                                        <h3 id="total-evaluations">0</h3>
+                                        <p class="mb-0">Evaluations</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card stats-card">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-star fa-2x mb-2"></i>
+                                        <h3 id="high-scores">0</h3>
+                                        <p class="mb-0">High Scores</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Evaluations -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-clock me-2"></i> Recent Evaluations</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="recent-evaluations">
+                                    <p class="text-muted">No evaluations yet. Upload resumes and job descriptions to get started.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upload Resume Section -->
+                    <div id="upload-resume-section" class="content-section" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h2><i class="fas fa-file-upload me-2"></i> Upload Resume</h2>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <form id="resume-upload-form" enctype="multipart/form-data">
+                                            <div class="upload-area" onclick="document.getElementById('resume-file').click()">
+                                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                                <h5>Drop your resume here or click to browse</h5>
+                                                <p class="text-muted">Supports PDF and DOCX files</p>
+                                                <input type="file" id="resume-file" name="file" accept=".pdf,.docx" style="display: none;">
+                                            </div>
+                                            
+                                            <div class="mt-4">
+                                                <div class="mb-3">
+                                                    <label for="student-name" class="form-label">Student Name</label>
+                                                    <input type="text" class="form-control" id="student-name" name="student_name" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="student-email" class="form-label">Student Email</label>
+                                                    <input type="email" class="form-control" id="student-email" name="student_email" required>
+                                                </div>
+                                            </div>
+
+                                            <button type="submit" class="btn btn-primary-custom btn-custom">
+                                                <i class="fas fa-upload me-2"></i> Upload Resume
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="fas fa-info-circle me-2"></i> Upload Guidelines</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-check text-success me-2"></i> PDF or DOCX format only</li>
+                                            <li><i class="fas fa-check text-success me-2"></i> Maximum file size: 10MB</li>
+                                            <li><i class="fas fa-check text-success me-2"></i> Include contact information</li>
+                                            <li><i class="fas fa-check text-success me-2"></i> List your skills clearly</li>
+                                            <li><i class="fas fa-check text-success me-2"></i> Include work experience</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upload Job Description Section -->
+                    <div id="upload-jd-section" class="content-section" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h2><i class="fas fa-briefcase me-2"></i> Upload Job Description</h2>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <form id="jd-upload-form" enctype="multipart/form-data">
+                                            <div class="upload-area" onclick="document.getElementById('jd-file').click()">
+                                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                                <h5>Drop job description here or click to browse</h5>
+                                                <p class="text-muted">Supports PDF, DOCX, and TXT files</p>
+                                                <input type="file" id="jd-file" name="file" accept=".pdf,.docx,.txt" style="display: none;">
+                                            </div>
+                                            
+                                            <div class="mt-4">
+                                                <div class="mb-3">
+                                                    <label for="jd-title" class="form-label">Job Title</label>
+                                                    <input type="text" class="form-control" id="jd-title" name="title" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="jd-location" class="form-label">Location</label>
+                                                    <input type="text" class="form-control" id="jd-location" name="location" required>
+                                                </div>
+                                            </div>
+
+                                            <button type="submit" class="btn btn-primary-custom btn-custom">
+                                                <i class="fas fa-upload me-2"></i> Upload Job Description
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="fas fa-info-circle me-2"></i> Job Description Guidelines</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-check text-success me-2"></i> Include required skills</li>
+                                            <li><i class="fas fa-check text-success me-2"></i> Specify experience level</li>
+                                            <li><i class="fas fa-check text-success me-2"></i> List qualifications needed</li>
+                                            <li><i class="fas fa-check text-success me-2"></i> Include job responsibilities</li>
+                                            <li><i class="fas fa-check text-success me-2"></i> Mention location and type</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Evaluate Section -->
+                    <div id="evaluate-section" class="content-section" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h2><i class="fas fa-search me-2"></i> Evaluate Resume</h2>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="fas fa-file-alt me-2"></i> Select Resume</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <select class="form-select" id="resume-select">
+                                            <option value="">Choose a resume...</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="fas fa-briefcase me-2"></i> Select Job Description</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <select class="form-select" id="jd-select">
+                                            <option value="">Choose a job description...</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-center mt-4">
+                            <button class="btn btn-primary-custom btn-custom btn-lg" onclick="evaluateResume()">
+                                <i class="fas fa-search me-2"></i> Evaluate Resume
+                            </button>
+                        </div>
+
+                        <div id="evaluation-result" class="mt-4" style="display: none;">
+                            <!-- Evaluation result will be displayed here -->
+                        </div>
+                    </div>
+
+                    <!-- Results Section -->
+                    <div id="results-section" class="content-section" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h2><i class="fas fa-chart-bar me-2"></i> Evaluation Results</h2>
+                            <div>
+                                <button class="btn btn-outline-primary btn-custom me-2" onclick="loadResults()">
+                                    <i class="fas fa-sync-alt me-2"></i> Refresh
+                                </button>
+                                <button class="btn btn-primary-custom btn-custom" onclick="exportResults()">
+                                    <i class="fas fa-download me-2"></i> Export
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Filters -->
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <label class="form-label">Job Description</label>
+                                        <select class="form-select" id="filter-jd">
+                                            <option value="">All</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Min Score</label>
+                                        <input type="number" class="form-control" id="filter-score" placeholder="0" min="0" max="100">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Verdict</label>
+                                        <select class="form-select" id="filter-verdict">
+                                            <option value="">All</option>
+                                            <option value="Excellent Match">Excellent Match</option>
+                                            <option value="Strong Match">Strong Match</option>
+                                            <option value="Good Match">Good Match</option>
+                                            <option value="Potential Match">Potential Match</option>
+                                            <option value="Moderate Match">Moderate Match</option>
+                                            <option value="Weak Match">Weak Match</option>
+                                            <option value="Poor Match">Poor Match</option>
+                                            <option value="High">High (Legacy)</option>
+                                            <option value="Medium">Medium (Legacy)</option>
+                                            <option value="Low">Low (Legacy)</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">&nbsp;</label>
+                                        <button class="btn btn-primary-custom btn-custom d-block" onclick="applyFilters()">
+                                            <i class="fas fa-filter me-2"></i> Apply Filters
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Results Table -->
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Student</th>
+                                                <th>Job Title</th>
+                                                <th>Score</th>
+                                                <th>Verdict</th>
+                                                <th>Date</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="results-table">
+                                            <tr>
+                                                <td colspan="6" class="text-center text-muted">No evaluations found</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5>Processing...</h5>
+                    <p class="text-muted">Please wait while we analyze your resume.</p>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="forceCloseModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Evaluation Detail Modal -->
+    <div class="modal fade" id="evaluationModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Evaluation Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="evaluation-detail-content">
+                    <!-- Content will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
